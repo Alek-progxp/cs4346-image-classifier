@@ -25,11 +25,25 @@ def load_ascii_data(image_file, label_file, width, height):
     
     return np.array(images, dtype=np.float32), np.array(labels, dtype=np.int32)
 
-def verify_image_data(images, labels, width, height):
+# Function to count black and white pixels in images (for 2nd features vector)
+def count_pixels(images):
+    pixels_per_image = images.shape[1]
+    white_pixels = np.sum(images, axis=1)           # Count 1s in each row
+    black_pixels = pixels_per_image - white_pixels  # Remaining are 0s
+    pixel_counts = np.column_stack((black_pixels, white_pixels))
+    return np.array(pixel_counts, dtype=np.int32)
+
+# Function used to output the image data for verification
+def verify_data(images, labels, width, height):
     img, labels = load_ascii_data(images, labels, width, height)
     print("images shape:", img.shape)
     print("dtype:", img.dtype, "min/max:", img.min(), img.max())
     print("first ten labels:", labels[:10])
+    print('\n')
+
+    pixel_counts_digits = count_pixels(img)
+    print("Dataset pixel counts shape:", pixel_counts_digits.shape)
+    print("First 5 samples [black, white]:\n", pixel_counts_digits[:5])
     print('\n')
 
 if __name__ == "__main__":
@@ -37,10 +51,10 @@ if __name__ == "__main__":
     # Want 28x28 = 784 pixels per image, datatype = float32, values between 0.0 or 1.0
     digitsrc = r'cs4346-data\digitdata\trainingimages'
     digitsrclb = r'cs4346-data\digitdata\traininglabels'
-    verify_image_data(digitsrc, digitsrclb, 28, 28)
+    verify_data(digitsrc, digitsrclb, 28, 28)
 
     # Verify loading function for faces: 
     # Want 60x70 = 4200 pixels per image, datatype = float32, values between 0.0 or 1.0
     facesrc = r'cs4346-data\facedata\facedatatrain'
     facesrclb = r'cs4346-data\facedata\facedatatrainlabels'
-    verify_image_data(facesrc, facesrclb, 60, 70)
+    verify_data(facesrc, facesrclb, 60, 70)
