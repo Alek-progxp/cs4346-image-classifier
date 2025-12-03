@@ -26,7 +26,7 @@ def load_ascii_data(image_file, label_file, width, height):
     return np.array(images, dtype=np.float32), np.array(labels, dtype=np.int32)
 
 # Function to count black and white pixels in images (for 2nd features vector)
-def count_pixels(images):
+def count_bw_pixels(images):
     pixels_per_image = images.shape[1]
     white_pixels = np.sum(images, axis=1)           # Count 1s in each row
     black_pixels = pixels_per_image - white_pixels  # Remaining are 0s
@@ -41,10 +41,9 @@ def verify_data(images, labels, width, height):
     print("first ten labels:", labels[:10])
     print('\n')
 
-    pixel_counts_digits = count_pixels(img)
+    pixel_counts_digits = count_bw_pixels(img)
     print("Dataset pixel counts shape:", pixel_counts_digits.shape)
-    print("First 5 samples [black, white]:\n", pixel_counts_digits[:5])
-    print('\n')
+    print("\nFirst 5 samples [black, white]:\n", pixel_counts_digits[:5])
 
 if __name__ == "__main__":
     # Verify loading function for digits: 
