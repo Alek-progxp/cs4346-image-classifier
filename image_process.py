@@ -33,7 +33,7 @@ def count_bw_pixels(images):
     pixel_counts = np.column_stack((black_pixels, white_pixels))
     return np.array(pixel_counts, dtype=np.int32)
 
-# Function used to output the image data for verificatin
+# Function used to output the image data for verification
 def print_data(images, labels, width, height):
     img, labels = load_ascii_data(images, labels, width, height)
     print("images shape:", img.shape)
