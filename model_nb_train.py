@@ -22,6 +22,41 @@ def train_nb_rawpx_model(image_file, label_file, width, height):
 
     return P_y, P_x_given_y, class_counts
 
+
+# Function to predict classes using Bernoulli Naive Bayes (raw pixel features).
+def predict_nb_rawpx_model(P_y, P_x_given_y, X):
+    """
+    Predict classes using Bernoulli Naive Bayes (raw pixel features).
+    
+    Args:
+        P_y: prior probabilities, shape (num_classes,)
+        P_x_given_y: P(x=1|y), shape (num_classes, num_pixels, 2)
+        X: test data, shape (n_samples, num_pixels) with values 0 or 1
+    
+    Returns:
+        predictions: array of predicted class labels, shape (n_samples,)
+    """
+    num_classes = P_y.shape[0]
+    n_samples = X.shape[0]
+    predictions = np.zeros(n_samples, dtype=int)
+    
+    for i in range(n_samples):
+        x = X[i]
+        # Log-likelihoods to prevent underflow
+        log_probs = np.log(P_y + 1e-12)
+        
+        for c in range(num_classes):
+            # Compute log P(x|y=c) for each class
+            # Log probability of white and black pixels for total log likelihood.
+            log_px = x.dot(np.log(P_x_given_y[c, :, 1] + 1e-12)) + \
+                     (1 - x).dot(np.log(P_x_given_y[c, :, 0] + 1e-12))
+            log_probs[c] += log_px
+        
+        # Choose class with highest log probability for this sample
+        predictions[i] = np.argmax(log_probs)
+    
+    return predictions
+
 def print_nb_rawpx_model(P_y, P_x_given_y, class_counts):
     print("\nTrained Bernoulli Naive Bayes model (Raw Pixel Features):")
     print("P(y):", P_y)
@@ -61,6 +96,37 @@ def train_nb_whitepx_model(image_file, label_file, width, height, bin_size=20):
         P_bin_given_y[c, :] = (bin_freq + 1) / (class_counts[c] + num_bins + 1)
 
     return P_y, P_bin_given_y, class_counts
+
+
+# Function to predict classes using Multinomial Naive Bayes (white pixel count feature).
+def predict_nb_whitepx_model(P_y, P_bin_given_y, X, bin_size=20):
+    """
+    Predict classes using Multinomial Naive Bayes (white pixel count feature).
+    
+    Args:
+        P_y: prior probabilities, shape (num_classes,)
+        P_bin_given_y: P(bin|y), shape (num_classes, num_bins)
+        X: test data, shape (n_samples, num_pixels) with binary values
+        bin_size: binning factor (same as used in training)
+    
+    Returns:
+        predictions: array of predicted class labels, shape (n_samples,)
+    """
+    num_classes = P_y.shape[0]
+    n_samples = X.shape[0]
+    predictions = np.zeros(n_samples, dtype=int)
+    
+    for i in range(n_samples):
+        white_count = int(np.sum(X[i]))
+        bin_idx = white_count // bin_size
+        bin_idx = min(bin_idx, P_bin_given_y.shape[1] - 1)
+        
+        log_probs = np.log(P_y + 1e-12)
+        log_probs += np.log(P_bin_given_y[:, bin_idx] + 1e-12)
+        
+        predictions[i] = np.argmax(log_probs)
+    
+    return predictions
 
 def print_nb_whitepx_model(P_y, P_count_given_y, class_counts):
     print("\nTrained Multinomial Naive Bayes model (White Pixel Count Feature):")
