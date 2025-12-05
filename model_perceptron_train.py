@@ -39,13 +39,13 @@ class Perceptron:
                     errors += 1
             
             # Periodic logging of errors for monitoring
-            if epoch % 20 == 0:
-                print(f"  Epoch {epoch}: {errors} errors")
+            # if epoch % 20 == 0:
+            #     print(f"  Epoch {epoch}: {errors} errors")
             
-            # Convergence check (Stop early if no errors)
-            if errors == 0:
-                print(f"  Converged at epoch {epoch}")
-                break
+            # # Convergence check (Stop early if no errors)
+            # if errors == 0:
+            #     print(f"  Converged at epoch {epoch}")
+            #     break
     
     # Function to predict on new dataset X (Used after training)
     def predict(self, X):
@@ -68,7 +68,7 @@ class MulticlassPerceptron:
     def fit(self, X, y):
         """Train one binary perceptron per class"""
         for c in range(self.num_classes):
-            print(f"Training perceptron for class {c}")
+            # print(f"Training perceptron for class {c}")
             # Create binary labels: 1 if class c, 0 otherwise
             binary_labels = (y == c).astype(int)
             
