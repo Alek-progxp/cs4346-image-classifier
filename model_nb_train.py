@@ -3,19 +3,29 @@ import image_process
 
 # Function to train Naive Bayes model using raw pixel values
 # Uses a Bernoulli Naive Bayes approach for binary pixel values 
-def train_nb_rawpx_model(image_file, label_file, width, height):
-    images, labels = image_process.load_ascii_data(image_file, label_file, width, height)
-
+def train_nb_rawpx_model(X, y):
+    """
+    Train Bernoulli Naive Bayes on raw pixel features.
+    
+    Args:
+        X: feature array, shape (n_samples, num_pixels) with binary values
+        y: label array, shape (n_samples,)
+    
+    Returns:
+        P_y: prior probabilities, shape (num_classes,)
+        P_x_given_y: conditional probabilities, shape (num_classes, num_pixels, 2)
+        class_counts: count of samples per class
+    """
     # Find P(y)
-    num_classes = len(set(labels))
-    class_counts = np.bincount(labels, minlength=num_classes)
-    P_y = class_counts / len(labels)
+    num_classes = len(set(y))
+    class_counts = np.bincount(y, minlength=num_classes)
+    P_y = class_counts / len(y)
 
     # Find P(x|y)
-    num_pixels = images.shape[1]
+    num_pixels = X.shape[1]
     P_x_given_y = np.zeros((num_classes, num_pixels, 2))  # 2 for binary pixel values
     for c in range(num_classes):
-        class_images = images[labels == c]
+        class_images = X[y == c]
         pixel_counts = np.sum(class_images, axis=0)
         P_x_given_y[c, :, 1] = (pixel_counts + 1) / (class_counts[c] + 2)  # Laplace smoothing
         P_x_given_y[c, :, 0] = 1 - P_x_given_y[c, :, 1]
@@ -68,32 +78,43 @@ def print_nb_rawpx_model(P_y, P_x_given_y, class_counts):
 # Reason why I use only white pixel counts is because using both colors would create dependency between features
 # (Both colors = Violaton of Naive Bayes assumption of feature independence)
 # Using Multinomial Naive Bayes for discrete white pixel counts
-def train_nb_whitepx_model(image_file, label_file, width, height, bin_size=20):
-    images, labels = image_process.load_ascii_data(image_file, label_file, width, height)
+def train_nb_whitepx_model(X, y, bin_size=20):
+    """
+    Train Multinomial Naive Bayes on binned white pixel counts.
     
-    white_pixel_counts = np.sum(images, axis=1).astype(int)
+    Args:
+        X: feature array, shape (n_samples, num_pixels) with binary values
+        y: label array, shape (n_samples,)
+        bin_size: size of bins for discretizing white pixel counts
+    
+    Returns:
+        P_y: prior probabilities, shape (num_classes,)
+        P_bin_given_y: conditional probabilities for bins, shape (num_classes, num_bins+1)
+        class_counts: count of samples per class
+    """
+    white_pixel_counts = np.sum(X, axis=1).astype(int)
 
     # Bin the white pixel counts into bins (0-19, 20-39, etc.) to reduce feature space
     # Reduce number of unique count values to improve estimation
     binned_counts = white_pixel_counts // bin_size
     
     # Find P(y)
-    num_classes = len(set(labels))
-    class_counts = np.bincount(labels, minlength=num_classes)
-    P_y = class_counts / len(labels)
+    num_classes = len(set(y))
+    class_counts = np.bincount(y, minlength=num_classes)
+    P_y = class_counts / len(y)
     
     # Find P(x|y) for white pixel counts using Multinomial distribution
     # Count frequency of each possible count value per class
     # max_count -> num_bins, is reduced from width*height to (width*height)/bin_size due to binning
-    num_bins = (width * height // bin_size) + 1
-    P_bin_given_y = np.zeros((num_classes, num_bins + 1))
+    max_bin = int(np.max(binned_counts)) + 1
+    P_bin_given_y = np.zeros((num_classes, max_bin + 1))
     
     for c in range(num_classes):
-        class_binned_counts = binned_counts[labels == c]
+        class_binned_counts = binned_counts[y == c]
         # Count occurrences of each value with Laplace smoothing
-        bin_freq = np.bincount(class_binned_counts, minlength=num_bins + 1)
+        bin_freq = np.bincount(class_binned_counts, minlength=max_bin + 1)
         # Laplace smoothing: add 1 to all bins
-        P_bin_given_y[c, :] = (bin_freq + 1) / (class_counts[c] + num_bins + 1)
+        P_bin_given_y[c, :len(bin_freq)] = (bin_freq + 1) / (class_counts[c] + len(bin_freq))
 
     return P_y, P_bin_given_y, class_counts
 
