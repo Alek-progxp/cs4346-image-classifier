@@ -65,8 +65,9 @@ if __name__ == "__main__":
         face_test_images, face_test_labels, 60, 70
     )
 
-    # Fractions of data to use for training
+    # Fractions of data to use for training and Iterations for each fraction
     fractions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    iterations = 5  # For averaging results if needed
     
     # Initialize result storage
     digit_nb_results = []
@@ -77,98 +78,162 @@ if __name__ == "__main__":
     print("\n[Training on DIGITS - Naive Bayes]")
     # Train Naive Bayes models on digit dataset
     for frac in fractions:
-        X_digit_sub, y_digit_sub = stratified_subset(X_digit_train, y_digit_train, frac, seed=42)
+        acc_raw_list, time_raw_list = [], []
+        acc_bin_list, time_bin_list = [], []
         
-        # Train Bernoulli NB on raw pixels
-        start_time = time.time()
-        P_y_raw, P_x_given_y, _ = model_nb_train.train_nb_rawpx_model(X_digit_sub, y_digit_sub)
-        train_time_raw = time.time() - start_time
-        y_pred_raw = model_nb_train.predict_nb_rawpx_model(P_y_raw, P_x_given_y, X_digit_test)
-        acc_raw = np.mean(y_pred_raw == y_digit_test)
+        for iter_num in range(iterations):
+            X_digit_sub, y_digit_sub = stratified_subset(X_digit_train, y_digit_train, frac, seed=42+iter_num)
+            
+            # Train Bernoulli NB on raw pixels
+            start_time = time.time()
+            P_y_raw, P_x_given_y, _ = model_nb_train.train_nb_rawpx_model(X_digit_sub, y_digit_sub)
+            train_time_raw = time.time() - start_time
+            y_pred_raw = model_nb_train.predict_nb_rawpx_model(P_y_raw, P_x_given_y, X_digit_test)
+            acc_raw = np.mean(y_pred_raw == y_digit_test)
+            acc_raw_list.append(acc_raw)
+            time_raw_list.append(train_time_raw)
+            
+            # Train Multinomial NB on binned white counts
+            start_time = time.time()
+            P_y_bin, P_bin_given_y, _ = model_nb_train.train_nb_whitepx_model(X_digit_sub, y_digit_sub, bin_size=20)
+            train_time_bin = time.time() - start_time
+            y_pred_bin = model_nb_train.predict_nb_whitepx_model(P_y_bin, P_bin_given_y, X_digit_test, bin_size=20)
+            acc_bin = np.mean(y_pred_bin == y_digit_test)
+            acc_bin_list.append(acc_bin)
+            time_bin_list.append(train_time_bin)
         
-        # Train Multinomial NB on binned white counts
-        start_time = time.time()
-        P_y_bin, P_bin_given_y, _ = model_nb_train.train_nb_whitepx_model(X_digit_sub, y_digit_sub, bin_size=20)
-        train_time_bin = time.time() - start_time
-        y_pred_bin = model_nb_train.predict_nb_whitepx_model(P_y_bin, P_bin_given_y, X_digit_test, bin_size=20)
-        acc_bin = np.mean(y_pred_bin == y_digit_test)
+        # Compute averages and standard deviations
+        avg_acc_raw = np.mean(acc_raw_list)
+        std_acc_raw = np.std(acc_raw_list)
+        avg_time_raw = np.mean(time_raw_list)
+        avg_acc_bin = np.mean(acc_bin_list)
+        std_acc_bin = np.std(acc_bin_list)
+        avg_time_bin = np.mean(time_bin_list)
         
-        digit_nb_results.append((f"{frac*100:.0f}%", f"{acc_raw:.4f}", f"{train_time_raw:.2f}s", f"{acc_bin:.4f}", f"{train_time_bin:.2f}s"))
-        print(f"  {frac*100:.0f}%: NB Raw={acc_raw:.4f}, NB Bin={acc_bin:.4f}")
+        digit_nb_results.append((f"{frac*100:.0f}%", f"{avg_acc_raw:.4f}±{std_acc_raw:.4f}", f"{avg_time_raw:.2f}s", f"{avg_acc_bin:.4f}±{std_acc_bin:.4f}", f"{avg_time_bin:.2f}s"))
+        print(f"  {frac*100:.0f}%: NB Raw={avg_acc_raw:.4f}±{std_acc_raw:.4f}, NB Bin={avg_acc_bin:.4f}±{std_acc_bin:.4f}")
     
     print("\n[Training on DIGITS - Perceptron]")
     # Train Perceptron models on digit dataset
     for frac in fractions:
-        X_digit_sub, y_digit_sub = stratified_subset(X_digit_train, y_digit_train, frac, seed=42)
+        acc_raw_list, time_raw_list = [], []
+        acc_bin_list, time_bin_list = [], []
         
-        # Train Perceptron on raw pixels
-        start_time = time.time()
-        perc_raw = model_perceptron_train.MulticlassPerceptron(num_classes=10, learning_rate=0.01, num_epochs=50)
-        perc_raw.fit(X_digit_sub, y_digit_sub)
-        train_time_raw = time.time() - start_time
-        y_pred_raw = perc_raw.predict(X_digit_test)
-        acc_raw = np.mean(y_pred_raw == y_digit_test)
+        for iter_num in range(iterations):
+            X_digit_sub, y_digit_sub = stratified_subset(X_digit_train, y_digit_train, frac, seed=42+iter_num)
+            
+            # Train Perceptron on raw pixels
+            start_time = time.time()
+            perc_raw = model_perceptron_train.MulticlassPerceptron(num_classes=10, learning_rate=0.01, num_epochs=50)
+            perc_raw.fit(X_digit_sub, y_digit_sub)
+            train_time_raw = time.time() - start_time
+            y_pred_raw = perc_raw.predict(X_digit_test)
+            acc_raw = np.mean(y_pred_raw == y_digit_test)
+            acc_raw_list.append(acc_raw)
+            time_raw_list.append(train_time_raw)
+            
+            # Train Perceptron on binned white counts
+            X_digit_sub_binned = model_perceptron_train.bin_white_pixel_counts(X_digit_sub, bin_size=20)
+            X_digit_test_binned = model_perceptron_train.bin_white_pixel_counts(X_digit_test, bin_size=20)
+            start_time = time.time()
+            perc_binned = model_perceptron_train.MulticlassPerceptron(num_classes=10, learning_rate=0.01, num_epochs=50)
+            perc_binned.fit(X_digit_sub_binned, y_digit_sub)
+            train_time_bin = time.time() - start_time
+            y_pred_bin = perc_binned.predict(X_digit_test_binned)
+            acc_bin = np.mean(y_pred_bin == y_digit_test)
+            acc_bin_list.append(acc_bin)
+            time_bin_list.append(train_time_bin)
         
-        # Train Perceptron on binned white counts
-        X_digit_sub_binned = model_perceptron_train.bin_white_pixel_counts(X_digit_sub, bin_size=20)
-        X_digit_test_binned = model_perceptron_train.bin_white_pixel_counts(X_digit_test, bin_size=20)
-        start_time = time.time()
-        perc_binned = model_perceptron_train.MulticlassPerceptron(num_classes=10, learning_rate=0.01, num_epochs=50)
-        perc_binned.fit(X_digit_sub_binned, y_digit_sub)
-        train_time_bin = time.time() - start_time
-        y_pred_bin = perc_binned.predict(X_digit_test_binned)
-        acc_bin = np.mean(y_pred_bin == y_digit_test)
+        # Compute averages and standard deviations
+        avg_acc_raw = np.mean(acc_raw_list)
+        std_acc_raw = np.std(acc_raw_list)
+        avg_time_raw = np.mean(time_raw_list)
+        avg_acc_bin = np.mean(acc_bin_list)
+        std_acc_bin = np.std(acc_bin_list)
+        avg_time_bin = np.mean(time_bin_list)
         
-        digit_perc_results.append((f"{frac*100:.0f}%", f"{acc_raw:.4f}", f"{train_time_raw:.2f}s", f"{acc_bin:.4f}", f"{train_time_bin:.2f}s"))
-        print(f"  {frac*100:.0f}%: Perc Raw={acc_raw:.4f}, Perc Bin={acc_bin:.4f}")
+        digit_perc_results.append((f"{frac*100:.0f}%", f"{avg_acc_raw:.4f}±{std_acc_raw:.4f}", f"{avg_time_raw:.2f}s", f"{avg_acc_bin:.4f}±{std_acc_bin:.4f}", f"{avg_time_bin:.2f}s"))
+        print(f"  {frac*100:.0f}%: Perc Raw={avg_acc_raw:.4f}±{std_acc_raw:.4f}, Perc Bin={avg_acc_bin:.4f}±{std_acc_bin:.4f}")
     
     print("\n[Training on FACES - Naive Bayes]")
     # Train Naive Bayes models on face dataset
     for frac in fractions:
-        X_face_sub, y_face_sub = stratified_subset(X_face_train, y_face_train, frac, seed=42)
+        acc_raw_list, time_raw_list = [], []
+        acc_bin_list, time_bin_list = [], []
         
-        # Train Bernoulli NB on raw pixels
-        start_time = time.time()
-        P_y_raw, P_x_given_y, _ = model_nb_train.train_nb_rawpx_model(X_face_sub, y_face_sub)
-        train_time_raw = time.time() - start_time
-        y_pred_raw = model_nb_train.predict_nb_rawpx_model(P_y_raw, P_x_given_y, X_face_test)
-        acc_raw = np.mean(y_pred_raw == y_face_test)
+        for iter_num in range(iterations):
+            X_face_sub, y_face_sub = stratified_subset(X_face_train, y_face_train, frac, seed=42+iter_num)
+            
+            # Train Bernoulli NB on raw pixels
+            start_time = time.time()
+            P_y_raw, P_x_given_y, _ = model_nb_train.train_nb_rawpx_model(X_face_sub, y_face_sub)
+            train_time_raw = time.time() - start_time
+            y_pred_raw = model_nb_train.predict_nb_rawpx_model(P_y_raw, P_x_given_y, X_face_test)
+            acc_raw = np.mean(y_pred_raw == y_face_test)
+            acc_raw_list.append(acc_raw)
+            time_raw_list.append(train_time_raw)
+            
+            # Train Multinomial NB on binned white counts
+            start_time = time.time()
+            P_y_bin, P_bin_given_y, _ = model_nb_train.train_nb_whitepx_model(X_face_sub, y_face_sub, bin_size=20)
+            train_time_bin = time.time() - start_time
+            y_pred_bin = model_nb_train.predict_nb_whitepx_model(P_y_bin, P_bin_given_y, X_face_test, bin_size=20)
+            acc_bin = np.mean(y_pred_bin == y_face_test)
+            acc_bin_list.append(acc_bin)
+            time_bin_list.append(train_time_bin)
         
-        # Train Multinomial NB on binned white counts
-        start_time = time.time()
-        P_y_bin, P_bin_given_y, _ = model_nb_train.train_nb_whitepx_model(X_face_sub, y_face_sub, bin_size=20)
-        train_time_bin = time.time() - start_time
-        y_pred_bin = model_nb_train.predict_nb_whitepx_model(P_y_bin, P_bin_given_y, X_face_test, bin_size=20)
-        acc_bin = np.mean(y_pred_bin == y_face_test)
+        # Compute averages and standard deviations
+        avg_acc_raw = np.mean(acc_raw_list)
+        std_acc_raw = np.std(acc_raw_list)
+        avg_time_raw = np.mean(time_raw_list)
+        avg_acc_bin = np.mean(acc_bin_list)
+        std_acc_bin = np.std(acc_bin_list)
+        avg_time_bin = np.mean(time_bin_list)
         
-        face_nb_results.append((f"{frac*100:.0f}%", f"{acc_raw:.4f}", f"{train_time_raw:.2f}s", f"{acc_bin:.4f}", f"{train_time_bin:.2f}s"))
-        print(f"  {frac*100:.0f}%: NB Raw={acc_raw:.4f}, NB Bin={acc_bin:.4f}")
+        face_nb_results.append((f"{frac*100:.0f}%", f"{avg_acc_raw:.4f}±{std_acc_raw:.4f}", f"{avg_time_raw:.2f}s", f"{avg_acc_bin:.4f}±{std_acc_bin:.4f}", f"{avg_time_bin:.2f}s"))
+        print(f"  {frac*100:.0f}%: NB Raw={avg_acc_raw:.4f}±{std_acc_raw:.4f}, NB Bin={avg_acc_bin:.4f}±{std_acc_bin:.4f}")
     
     print("\n[Training on FACES - Perceptron]")
     # Train Perceptron models on face dataset
     for frac in fractions:
-        X_face_sub, y_face_sub = stratified_subset(X_face_train, y_face_train, frac, seed=42)
+        acc_raw_list, time_raw_list = [], []
+        acc_bin_list, time_bin_list = [], []
         
-        # Train Perceptron on raw pixels
-        start_time = time.time()
-        perc_raw = model_perceptron_train.MulticlassPerceptron(num_classes=2, learning_rate=0.01, num_epochs=50)
-        perc_raw.fit(X_face_sub, y_face_sub)
-        train_time_raw = time.time() - start_time
-        y_pred_raw = perc_raw.predict(X_face_test)
-        acc_raw = np.mean(y_pred_raw == y_face_test)
+        for iter_num in range(iterations):
+            X_face_sub, y_face_sub = stratified_subset(X_face_train, y_face_train, frac, seed=42+iter_num)
+            
+            # Train Perceptron on raw pixels
+            start_time = time.time()
+            perc_raw = model_perceptron_train.MulticlassPerceptron(num_classes=2, learning_rate=0.01, num_epochs=50)
+            perc_raw.fit(X_face_sub, y_face_sub)
+            train_time_raw = time.time() - start_time
+            y_pred_raw = perc_raw.predict(X_face_test)
+            acc_raw = np.mean(y_pred_raw == y_face_test)
+            acc_raw_list.append(acc_raw)
+            time_raw_list.append(train_time_raw)
+            
+            # Train Perceptron on binned white counts
+            X_face_sub_binned = model_perceptron_train.bin_white_pixel_counts(X_face_sub, bin_size=20)
+            X_face_test_binned = model_perceptron_train.bin_white_pixel_counts(X_face_test, bin_size=20)
+            start_time = time.time()
+            perc_binned = model_perceptron_train.MulticlassPerceptron(num_classes=2, learning_rate=0.01, num_epochs=50)
+            perc_binned.fit(X_face_sub_binned, y_face_sub)
+            train_time_bin = time.time() - start_time
+            y_pred_bin = perc_binned.predict(X_face_test_binned)
+            acc_bin = np.mean(y_pred_bin == y_face_test)
+            acc_bin_list.append(acc_bin)
+            time_bin_list.append(train_time_bin)
         
-        # Train Perceptron on binned white counts
-        X_face_sub_binned = model_perceptron_train.bin_white_pixel_counts(X_face_sub, bin_size=20)
-        X_face_test_binned = model_perceptron_train.bin_white_pixel_counts(X_face_test, bin_size=20)
-        start_time = time.time()
-        perc_binned = model_perceptron_train.MulticlassPerceptron(num_classes=2, learning_rate=0.01, num_epochs=50)
-        perc_binned.fit(X_face_sub_binned, y_face_sub)
-        train_time_bin = time.time() - start_time
-        y_pred_bin = perc_binned.predict(X_face_test_binned)
-        acc_bin = np.mean(y_pred_bin == y_face_test)
+        # Compute averages and standard deviations
+        avg_acc_raw = np.mean(acc_raw_list)
+        std_acc_raw = np.std(acc_raw_list)
+        avg_time_raw = np.mean(time_raw_list)
+        avg_acc_bin = np.mean(acc_bin_list)
+        std_acc_bin = np.std(acc_bin_list)
+        avg_time_bin = np.mean(time_bin_list)
         
-        face_perc_results.append((f"{frac*100:.0f}%", f"{acc_raw:.4f}", f"{train_time_raw:.2f}s", f"{acc_bin:.4f}", f"{train_time_bin:.2f}s"))
-        print(f"  {frac*100:.0f}%: Perc Raw={acc_raw:.4f}, Perc Bin={acc_bin:.4f}")
+        face_perc_results.append((f"{frac*100:.0f}%", f"{avg_acc_raw:.4f}±{std_acc_raw:.4f}", f"{avg_time_raw:.2f}s", f"{avg_acc_bin:.4f}±{std_acc_bin:.4f}", f"{avg_time_bin:.2f}s"))
+        print(f"  {frac*100:.0f}%: Perc Raw={avg_acc_raw:.4f}±{std_acc_raw:.4f}, Perc Bin={avg_acc_bin:.4f}±{std_acc_bin:.4f}")
     
     # Print formatted result tables
     print_table("DIGIT CLASSIFICATION - NAIVE BAYES", digit_nb_results, ["Fraction", "Raw Acc", "Raw Time", "Binned Acc", "Binned Time"])
