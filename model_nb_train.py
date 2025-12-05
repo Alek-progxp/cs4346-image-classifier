@@ -105,7 +105,7 @@ def train_nb_whitepx_model(X, y, bin_size=20):
     
     # Find P(x|y) for white pixel counts using Multinomial distribution
     # Count frequency of each possible count value per class
-    # max_count -> num_bins, is reduced from width*height to (width*height)/bin_size due to binning
+    # max_count -> max_bin (for binning instead of individual counts)
     max_bin = int(np.max(binned_counts))
     P_bin_given_y = np.zeros((num_classes, max_bin + 1))
     

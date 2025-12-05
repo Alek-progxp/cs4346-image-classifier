@@ -177,8 +177,8 @@ if __name__ == "__main__":
     
     # Model 2: Face - Binned white pixel counts
     print("\nModel 2: Binned White Pixel Counts (bin_size=50)")
-    X_face_train_binned = bin_white_pixel_counts(X_face_train, bin_size=20)
-    X_face_test_binned = bin_white_pixel_counts(X_face_test, bin_size=20)
+    X_face_train_binned = bin_white_pixel_counts(X_face_train, bin_size=50)
+    X_face_test_binned = bin_white_pixel_counts(X_face_test, bin_size=50)
     print(f"Training data shape: {X_face_train_binned.shape}")
     
     perceptron_binned_face = MulticlassPerceptron(num_classes=2, learning_rate=0.01, num_epochs=100)

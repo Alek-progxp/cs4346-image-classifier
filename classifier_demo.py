@@ -213,8 +213,8 @@ if __name__ == "__main__":
             time_raw_list.append(train_time_raw)
             
             # Train Perceptron on binned white counts
-            X_face_sub_binned = model_perceptron_train.bin_white_pixel_counts(X_face_sub, bin_size=20)
-            X_face_test_binned = model_perceptron_train.bin_white_pixel_counts(X_face_test, bin_size=20)
+            X_face_sub_binned = model_perceptron_train.bin_white_pixel_counts(X_face_sub, bin_size=50)
+            X_face_test_binned = model_perceptron_train.bin_white_pixel_counts(X_face_test, bin_size=50)
             start_time = time.time()
             perc_binned = model_perceptron_train.MulticlassPerceptron(num_classes=2, learning_rate=0.01, num_epochs=50)
             perc_binned.fit(X_face_sub_binned, y_face_sub)
